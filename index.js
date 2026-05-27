@@ -198,8 +198,18 @@ async function handleListCommand(roomId) {
     return;
   }
 
-  const list = faqs.map((f) => `[${f.id}] ${f.key}: ${f.value}`).join('\n');
-  await sendMessage(roomId, `등록된 답변 목록:\n${list}`);
+  const LIMIT = 4000;
+  const lines = faqs.map((f) => `[${f.id}] ${f.key}: ${f.value}`);
+
+  let chunk = `등록된 답변 목록 (총 ${faqs.length}개):\n`;
+  for (const line of lines) {
+    if ((chunk + '\n' + line).length > LIMIT) {
+      await sendMessage(roomId, chunk);
+      chunk = '';
+    }
+    chunk += (chunk ? '\n' : '') + line;
+  }
+  if (chunk) await sendMessage(roomId, chunk);
 }
 
 async function handleDeleteCommand(text, roomId) {
