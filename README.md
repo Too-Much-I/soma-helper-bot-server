@@ -67,7 +67,10 @@ Webex 스페이스에서 자주 묻는 질문(FAQ)을 등록하고, 원클릭으
 
 **예시:**
 
-<img width="1440" height="240" alt="image" src="https://github.com/user-attachments/assets/18578feb-15b7-49fc-9071-a3c25c0bdb48" />
 ```
 /삭제 제출마감
 ```
+
+<img width="1440" height="240" alt="image" src="https://github.com/user-attachments/assets/18578feb-15b7-49fc-9071-a3c25c0bdb48" />
+
+
