@@ -243,6 +243,25 @@ async function handleCardAction(data, actorId) {
   await sendMessage(roomId, `📋 [${selectedKey}] 답변 내용 (복사해서 사용하세요)\n\n${faq.value}`);
 }
 
+app.post('/admin/faq/bulk', (req, res) => {
+  const items = req.body;
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'body는 [{ key, value }, ...] 형식의 배열이어야 합니다.' });
+  }
+
+  const invalid = items.find((item) => !item.key || !item.value);
+  if (invalid) {
+    return res.status(400).json({ error: '각 항목에 key와 value가 필요합니다.' });
+  }
+
+  for (const { key, value } of items) {
+    db.upsert(key, value);
+  }
+
+  res.json({ inserted: items.length });
+});
+
 app.listen(PORT, () => {
   console.log(`서버 실행 중: http://localhost:${PORT}`);
 });
