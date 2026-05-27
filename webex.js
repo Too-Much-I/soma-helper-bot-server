@@ -14,8 +14,20 @@ async function getMessageDetails(messageId) {
   return res.data;
 }
 
+const WEBEX_MSG_LIMIT = 7000;
+
 async function sendMessage(roomId, text) {
-  await axios.post(`${BASE_URL}/messages`, { roomId, text }, { headers: getHeaders() });
+  if (text.length <= WEBEX_MSG_LIMIT) {
+    await axios.post(`${BASE_URL}/messages`, { roomId, text }, { headers: getHeaders() });
+    return;
+  }
+  // 7000자 단위로 분할 전송
+  let remaining = text;
+  while (remaining.length > 0) {
+    const chunk = remaining.slice(0, WEBEX_MSG_LIMIT);
+    remaining = remaining.slice(WEBEX_MSG_LIMIT);
+    await axios.post(`${BASE_URL}/messages`, { roomId, text: chunk }, { headers: getHeaders() });
+  }
 }
 
 async function sendCard(roomId, card) {
