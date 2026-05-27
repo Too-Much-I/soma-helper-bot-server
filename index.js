@@ -70,7 +70,7 @@ app.post('/webhook', async (req, res) => {
       }
     }
   } catch (err) {
-    console.error('webhook 처리 오류:', err.message);
+    console.error('webhook 처리 오류:', err.message, err.response?.data ?? '');
   }
 });
 
