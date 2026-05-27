@@ -3,6 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const { getMessageDetails, sendMessage, sendCard, buildFaqCard } = require('./webex');
 const db = require('./db');
+const { createEmbedding, cosineSimilarity, getEmbeddingInput } = require('./embedding');
 
 const app = express();
 app.use(express.json());
@@ -60,6 +61,8 @@ app.post('/webhook', async (req, res) => {
         await handleRegisterCommand(personId, text, roomId);
       } else if (text.startsWith('/답변')) {
         await handleReplyCommand(personId, text, roomId);
+      } else if (text.startsWith('/질문')) {
+        await handleQuestionCommand(text, roomId);
       } else if (text === '/목록') {
         await handleListCommand(roomId);
       } else if (text.startsWith('/삭제 ')) {
@@ -88,8 +91,16 @@ async function handleRegisterValue(personId, text, roomId) {
   const session = registerSessions.get(personId);
   registerSessions.delete(personId);
 
-  db.upsert(session.key, text);
-  await sendMessage(roomId, `"${session.key}" 답변이 등록되었습니다.`);
+  const faq = db.upsert(session.key, text);
+
+  try {
+    const embedding = await createEmbedding(getEmbeddingInput(faq));
+    db.upsertEmbedding(faq.key, embedding);
+    await sendMessage(roomId, `"${session.key}" 답변이 등록되었습니다.`);
+  } catch (err) {
+    console.error('임베딩 생성 오류:', err.message);
+    await sendMessage(roomId, `"${session.key}" 답변이 등록되었습니다.\n단, 임베딩 생성에 실패해 /질문 검색에는 아직 반영되지 않았습니다.`);
+  }
 }
 
 async function handleReplyCommand(personId, text, roomId) {
@@ -107,6 +118,77 @@ async function handleReplyCommand(personId, text, roomId) {
   }
 
   await sendMessage(roomId, faq.value);
+}
+
+function parseQuestionCommand(text) {
+  const body = text.replace('/질문', '').trim();
+  const match = body.match(/^(\d+)\s+(.+)$/);
+
+  if (!match) {
+    return {
+      question: body,
+      topK: Number(process.env.QUESTION_TOP_K || 3),
+    };
+  }
+
+  return {
+    question: match[2].trim(),
+    topK: Number(match[1]),
+  };
+}
+
+async function ensureEmbeddings(faqs) {
+  for (const faq of faqs) {
+    if (faq.embedding) continue;
+
+    const embedding = await createEmbedding(getEmbeddingInput(faq));
+    db.upsertEmbedding(faq.key, embedding);
+    faq.embedding = embedding;
+  }
+}
+
+async function handleQuestionCommand(text, roomId) {
+  const { question, topK } = parseQuestionCommand(text);
+  if (!question) {
+    await sendMessage(roomId, '사용법: /질문 [질문]\n예) /질문 프로젝트 제출 마감이 언제인가요?');
+    return;
+  }
+
+  const faqs = db.getAllForSearch();
+  if (faqs.length === 0) {
+    await sendMessage(roomId, '등록된 답변이 없습니다.');
+    return;
+  }
+
+  try {
+    await ensureEmbeddings(faqs);
+    const questionEmbedding = await createEmbedding(question);
+    const limit = Number.isInteger(topK) && topK > 0 ? Math.min(topK, 10) : 3;
+
+    const results = faqs
+      .map((faq) => ({
+        ...faq,
+        score: cosineSimilarity(questionEmbedding, faq.embedding),
+      }))
+      .filter((faq) => Number.isFinite(faq.score))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+
+    if (results.length === 0) {
+      await sendMessage(roomId, '유사도를 계산할 수 있는 답변이 없습니다.');
+      return;
+    }
+
+    const lines = results.map((faq, index) => {
+      const score = faq.score.toFixed(4);
+      return `${index + 1}. [${faq.key}] 유사도 ${score}\n${faq.value}`;
+    });
+
+    await sendMessage(roomId, `질문: ${question}\n\n가장 유사한 답변 ${results.length}개:\n\n${lines.join('\n\n')}`);
+  } catch (err) {
+    console.error('질문 검색 오류:', err.message);
+    await sendMessage(roomId, '질문 검색 중 오류가 발생했습니다. OPENAI_API_KEY 설정과 서버 로그를 확인해주세요.');
+  }
 }
 
 async function handleListCommand(roomId) {

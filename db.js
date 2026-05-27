@@ -20,16 +20,27 @@ try {
   // 이미 존재하면 무시
 }
 
+function parseEmbedding(embedding) {
+  if (!embedding) return null;
+
+  try {
+    return JSON.parse(embedding);
+  } catch (_) {
+    return null;
+  }
+}
+
 function getAll() {
   return db.prepare('SELECT id, key, value FROM faqs ORDER BY id').all();
 }
 
 function getByKey(key) {
-  return db.prepare('SELECT value FROM faqs WHERE key = ?').get(key);
+  return db.prepare('SELECT id, key, value, embedding FROM faqs WHERE key = ?').get(key);
 }
 
 function upsert(key, value) {
-  db.prepare('INSERT INTO faqs (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value);
+  db.prepare('INSERT INTO faqs (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, embedding = NULL').run(key, value);
+  return getByKey(key);
 }
 
 function remove(key) {
@@ -47,11 +58,21 @@ function upsertEmbedding(key, embedding) {
 }
 
 function getAllWithEmbeddings() {
-  return db.prepare('SELECT key, value, embedding FROM faqs WHERE embedding IS NOT NULL').all().map((row) => ({
+  return db.prepare('SELECT id, key, value, embedding FROM faqs WHERE embedding IS NOT NULL').all().map((row) => ({
+    id: row.id,
     key: row.key,
     value: row.value,
-    embedding: JSON.parse(row.embedding),
+    embedding: parseEmbedding(row.embedding),
+  })).filter((row) => row.embedding);
+}
+
+function getAllForSearch() {
+  return db.prepare('SELECT id, key, value, embedding FROM faqs ORDER BY id').all().map((row) => ({
+    id: row.id,
+    key: row.key,
+    value: row.value,
+    embedding: parseEmbedding(row.embedding),
   }));
 }
 
-module.exports = { getAll, getByKey, upsert, upsertEmbedding, getAllWithEmbeddings, remove, removeById };
+module.exports = { getAll, getByKey, upsert, upsertEmbedding, getAllWithEmbeddings, getAllForSearch, remove, removeById };
