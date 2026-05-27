@@ -40,9 +40,10 @@ function buildFaqCard(faqs) {
     return null;
   }
 
-  const choices = faqs.map((faq) => ({
+  const actions = faqs.map((faq) => ({
+    type: 'Action.Submit',
     title: faq.key,
-    value: faq.key,
+    data: { selectedKey: faq.key },
   }));
 
   return {
@@ -52,24 +53,12 @@ function buildFaqCard(faqs) {
     body: [
       {
         type: 'TextBlock',
-        text: '전송할 답변을 선택하세요',
+        text: '확인할 답변을 선택하세요',
         weight: 'Bolder',
         size: 'Medium',
       },
-      {
-        type: 'Input.ChoiceSet',
-        id: 'selectedKey',
-        style: 'expanded',
-        choices,
-      },
     ],
-    actions: [
-      {
-        type: 'Action.Submit',
-        title: '전송',
-        data: { action: 'sendFaq' },
-      },
-    ],
+    actions,
   };
 }
 
