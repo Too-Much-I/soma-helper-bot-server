@@ -199,24 +199,15 @@ async function handleListCommand(roomId) {
   }
 
   const LIMIT = 4000;
-  const lines = faqs.map((f) => `[${f.id}] ${f.key}: ${f.value}`);
+  const lines = faqs.map((f) => `[${f.id}] ${f.key}`);
 
   let chunk = `등록된 답변 목록 (총 ${faqs.length}개):\n`;
   for (const line of lines) {
-    if (chunk && (chunk + '\n' + line).length > LIMIT) {
+    if ((chunk + '\n' + line).length > LIMIT) {
       await sendMessage(roomId, chunk);
-      chunk = '';
-    }
-    // 단일 항목 자체가 LIMIT을 초과하는 경우 강제 분할
-    if (line.length > LIMIT) {
-      let remaining = line;
-      while (remaining.length > LIMIT) {
-        await sendMessage(roomId, remaining.slice(0, LIMIT));
-        remaining = remaining.slice(LIMIT);
-      }
-      chunk = remaining;
+      chunk = line;
     } else {
-      chunk += (chunk ? '\n' : '') + line;
+      chunk += '\n' + line;
     }
   }
   if (chunk) await sendMessage(roomId, chunk);
