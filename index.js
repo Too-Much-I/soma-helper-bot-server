@@ -91,11 +91,11 @@ async function handleRegisterValue(personId, text, roomId) {
   const session = registerSessions.get(personId);
   registerSessions.delete(personId);
 
-  const faq = db.upsert(session.key, text);
+  const faq = await db.upsert(session.key, text);
 
   try {
     const embedding = await createEmbedding(getEmbeddingInput(faq));
-    db.upsertEmbedding(faq.key, embedding);
+    await db.upsertEmbedding(faq.key, embedding);
     await sendMessage(roomId, `"${session.key}" 답변이 등록되었습니다.`);
   } catch (err) {
     console.error('임베딩 생성 오류:', err.message);
@@ -111,7 +111,7 @@ async function handleReplyCommand(personId, text, roomId) {
   }
 
   const key = parts.slice(1).join(' ');
-  const faq = db.getByKey(key);
+  const faq = await db.getByKey(key);
   if (!faq) {
     await sendMessage(roomId, `"${key}"에 해당하는 답변이 없습니다.`);
     return;
@@ -142,7 +142,7 @@ async function ensureEmbeddings(faqs) {
     if (faq.embedding) continue;
 
     const embedding = await createEmbedding(getEmbeddingInput(faq));
-    db.upsertEmbedding(faq.key, embedding);
+    await db.upsertEmbedding(faq.key, embedding);
     faq.embedding = embedding;
   }
 }
@@ -154,7 +154,7 @@ async function handleQuestionCommand(text, roomId) {
     return;
   }
 
-  const faqs = db.getAllForSearch();
+  const faqs = await db.getAllForSearch();
   if (faqs.length === 0) {
     await sendMessage(roomId, '등록된 답변이 없습니다.');
     return;
@@ -192,7 +192,7 @@ async function handleQuestionCommand(text, roomId) {
 }
 
 async function handleListCommand(roomId) {
-  const faqs = db.getAll();
+  const faqs = await db.getAll();
   if (faqs.length === 0) {
     await sendMessage(roomId, '등록된 답변이 없습니다.');
     return;
@@ -217,7 +217,7 @@ async function handleDeleteCommand(text, roomId) {
   const target = text.replace('/삭제 ', '').trim();
   const isId = /^\d+$/.test(target);
 
-  const deleted = isId ? db.removeById(Number(target)) : db.remove(target);
+  const deleted = isId ? await db.removeById(Number(target)) : await db.remove(target);
   if (deleted) {
     await sendMessage(roomId, `"${target}" 답변이 삭제되었습니다.`);
   } else {
@@ -244,7 +244,7 @@ async function handleCardAction(data, actorId) {
     return;
   }
 
-  const faq = db.getByKey(selectedKey);
+  const faq = await db.getByKey(selectedKey);
   if (!faq) {
     await sendMessage(roomId, `"${selectedKey}"에 해당하는 답변을 찾을 수 없습니다.`);
     return;
@@ -254,7 +254,7 @@ async function handleCardAction(data, actorId) {
   await sendMessage(roomId, `📋 [${selectedKey}] 답변 내용 (복사해서 사용하세요)\n\n${faq.value}`);
 }
 
-app.post('/admin/faq/bulk', (req, res) => {
+app.post('/admin/faq/bulk', async (req, res) => {
   const items = req.body;
 
   if (!Array.isArray(items) || items.length === 0) {
@@ -267,12 +267,19 @@ app.post('/admin/faq/bulk', (req, res) => {
   }
 
   for (const { key, value } of items) {
-    db.upsert(key, value);
+    await db.upsert(key, value);
   }
 
   res.json({ inserted: items.length });
 });
 
-app.listen(PORT, () => {
-  console.log(`서버 실행 중: http://localhost:${PORT}`);
-});
+app.get('/', (req, res) => res.sendStatus(200));
+
+async function start() {
+  await db.init();
+  app.listen(PORT, () => {
+    console.log(`서버 실행 중: http://localhost:${PORT}`);
+  });
+}
+
+start();
