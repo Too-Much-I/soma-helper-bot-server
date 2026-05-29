@@ -57,7 +57,9 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
-      if (text.startsWith('/등록')) {
+      if (/^(help|h|도움말|사용법)$/i.test(text)) {
+        await handleHelpCommand(roomId);
+      } else if (text.startsWith('/등록')) {
         await handleRegisterCommand(personId, text, roomId);
       } else if (text.startsWith('/답변')) {
         await handleReplyCommand(personId, text, roomId);
@@ -73,6 +75,22 @@ app.post('/webhook', async (req, res) => {
     console.error('webhook 처리 오류:', err.message, err.response?.data ?? '');
   }
 });
+
+async function handleHelpCommand(roomId) {
+  const message = [
+    '사용 가능한 명령어 목록:',
+    '',
+    '/등록 [키] — 새 답변 등록 (키 입력 후 내용 입력)',
+    '/답변 [키] — 키에 해당하는 답변 조회',
+    '/질문 [질문] — 유사한 답변 검색 (기본 3개)',
+    '/질문 [n] [질문] — 유사한 답변 n개 검색',
+    '/목록 — 등록된 전체 답변 키 목록 조회',
+    '/삭제 [키 또는 ID] — 답변 삭제',
+    '',
+    'help / h / 도움말 / 사용법 — 이 도움말 표시',
+  ].join('\n');
+  await sendMessage(roomId, message);
+}
 
 async function handleRegisterCommand(personId, text, roomId) {
   // /등록 [키] 형식 파싱
