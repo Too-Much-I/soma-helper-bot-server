@@ -65,7 +65,7 @@ app.post('/webhook', async (req, res) => {
         await handleReplyCommand(personId, text, roomId);
       } else if (text.startsWith('/질문')) {
         await handleQuestionCommand(text, roomId);
-      } else if (/^\/(뭐야|알려줘|찾아줘|검색|찾기)\b/.test(text)) {
+      } else if (/^\/(뭐야|알려줘|찾아줘|검색|찾기)(?=\s|$)/.test(text)) {
         const query = text.replace(/^\/(뭐야|알려줘|찾아줘|검색|찾기)\s*/, '');
         await handleQuestionCommand('/질문 ' + query, roomId);
       } else if (text === '/목록') {
