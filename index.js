@@ -65,6 +65,9 @@ app.post('/webhook', async (req, res) => {
         await handleReplyCommand(personId, text, roomId);
       } else if (text.startsWith('/질문')) {
         await handleQuestionCommand(text, roomId);
+      } else if (/^\/(뭐야|알려줘|찾아줘|검색|찾기)\b/.test(text)) {
+        const query = text.replace(/^\/(뭐야|알려줘|찾아줘|검색|찾기)\s*/, '');
+        await handleQuestionCommand('/질문 ' + query, roomId);
       } else if (text === '/목록') {
         await handleListCommand(roomId);
       } else if (text.startsWith('/삭제 ')) {
@@ -82,8 +85,8 @@ async function handleHelpCommand(roomId) {
     '',
     '/등록 [키] — 새 답변 등록 (키 입력 후 내용 입력)',
     '/답변 [키] — 키에 해당하는 답변 조회',
-    '/질문 [질문] — 유사한 답변 검색 (기본 3개)',
-    '/질문 [n] [질문] — 유사한 답변 n개 검색',
+    '/질문 (또는 /뭐야 /알려줘 /찾아줘 /검색 /찾기) [내용] — 유사한 답변 검색',
+    '/질문 [n] [내용] — 유사한 답변 n개 검색',
     '/목록 — 등록된 전체 답변 키 목록 조회',
     '/삭제 [키 또는 ID] — 답변 삭제',
     '',
